@@ -1,131 +1,126 @@
-import json
+
 import tkinter as tk
-from tkinter import messagebox
-from datetime import datetime
+from tkinter import ttk, messagebox
+import random
+import json
+import os
 
-# Путь к файлу данных
-FILE_PATH = ".venv/weather.json"
+HISTORY_FILE = "history.json"
+TASKS_FILE = "tasks.json"
 
-window = tk.Tk()
-window.title("Weather Diary")
-window.geometry("700x700")
 
-tk.Label(text="Дата(дд.мм.гг)", font=("Arial", 12)).pack(pady=5)
-date_entry = tk.Entry(width=20, font=("Arial", 12))
-date_entry.pack(padx=10, pady=5)
-
-tk.Label(text="Температура(число)", font=("Arial", 12)).pack(pady=10)
-temp_entry = tk.Entry(width=20, font=("Arial", 12))
-temp_entry.pack(padx=10, pady=5)
-
-tk.Label(text="Описание погоды", font=("Arial", 12)).pack(pady=15)
-weather_entry = tk.Entry(width=20, font=("Arial", 12))
-weather_entry.pack(padx=10, pady=15)
-
-tk.Label(text="Осадки (да/нет)", font=("Arial", 12)).pack(pady=15)
-osad_entry = tk.Entry(width=20, font=("Arial", 12))
-osad_entry.pack(padx=10, pady=15)
-
-def is_valid_date(date_str, date_format="%d.%m.%y"):
-    try:
-        datetime.strptime(date_str, date_format)
-        return True
-    except ValueError:
-        return False
-
-def load_file():
-    try:
-        with open(FILE_PATH, "r", encoding="utf-8") as f:
-            data = json.load(f)
-            if isinstance(data, list):
-                return data
-            else:
-                return []
-    except (FileNotFoundError, json.decoder.JSONDecodeError):
-        return []
-
-def add_record():
-    date = date_entry.get()
-    temp = temp_entry.get()
-    weather = weather_entry.get()
-    osad = osad_entry.get()
-
-    if not is_valid_date(date):
-        messagebox.showerror("Ошибка", "Неверный формат даты")
-        return
-    if not temp.isdigit():
-        messagebox.showerror("Ошибка", "Неверный формат температуры")
-        return
-    if len(weather) == 0:
-        messagebox.showerror("Ошибка", "Введите описание погоды")
-        return
-    if osad.lower() not in ["да", "нет"]:
-        messagebox.showerror("Ошибка", "Введите да/нет для осадков")
-        return
-
-    new_entry = {
-        "Дата": date,
-        "Температура": int(temp),
-        "Погода": weather,
-        "Осадки": osad.lower()
-    }
-
-    data = load_file()
-    data.append(new_entry)
-    with open(FILE_PATH, "w", encoding="utf-8") as f:
-        json.dump(data, f, indent=4, ensure_ascii=False)
-    messagebox.showinfo("Успех", "Запись добавлена")
-    clear_entries()
-
-def clear_entries():
-    date_entry.delete(0, tk.END)
-    temp_entry.delete(0, tk.END)
-    weather_entry.delete(0, tk.END)
-    osad_entry.delete(0, tk.END)
-
-def filter_record():
-    filter_date = filter_date_entry.get()
-    filter_temp = filter_temp_entry.get()
-
-    data = load_file()
-    filtered = []
-
-    if not isinstance(data, list):
-        data = []
-
-    for record in data:
-        if filter_date:
-            if record.get("Дата") != filter_date:
-                continue
-        if filter_temp:
-            if not filter_temp.isdigit():
-                messagebox.showerror("Ошибка", "Введите число для температуры")
-                return
-            if record.get("Температура") != int(filter_temp):
-                continue
-        filtered.append(record)
-
-    result_text.delete("1.0", tk.END)
-
-    if not filtered:
-        result_text.insert(tk.END, "Записей нет")
+def load_tasks():
+    if os.path.exists(TASKS_FILE):
+        with open(TASKS_FILE, "r", encoding="utf-8") as f:
+            return json.load(f)
     else:
-        for r in filtered:
-            result_text.insert(tk.END, f"{r}\n")
+        return [
+            {"task": "Прочитать статью", "type": "учёба"},
+            {"task": "Сделать зарядку", "type": "спорт"},
+            {"task": "Написать письмо", "type": "работа"},
+            {"task": "Погулять на свежем воздухе", "type": "спорт"},
+            {"task": "Изучить новую тему", "type": "учёба"},
+        ]
 
-tk.Button(text="Добавить запись", width=20, height=2, command=add_record).pack(pady=10)
 
-tk.Label(text="Фильтр по дате", font=("Arial", 10)).pack(pady=5)
-filter_date_entry = tk.Entry(window, width=20, font=("Arial", 12))
-filter_date_entry.pack(pady=5)
+tasks = load_tasks()
 
-tk.Label(text="Фильтр по температуре", font=("Arial", 10)).pack(pady=5)
-filter_temp_entry = tk.Entry(window, width=20, font=("Arial", 12))
-filter_temp_entry.pack(pady=5)
+if os.path.exists(HISTORY_FILE):
+    with open(HISTORY_FILE, "r", encoding="utf-8") as f:
+        history = json.load(f)
+else:
+    history = []
 
-tk.Button(text="Показать отфильтрованные записи", command=filter_record).pack(pady=5)
+root = tk.Tk()
+root.title("Random Task Generator")
+root.geometry("500x700")
 
-result_text = tk.Text(window, height=10, width=50)
-result_text.pack(pady=10)
+filter_var = tk.StringVar()
+filter_var.set("Все")
+types = ["Все", "учёба", "спорт", "работа"]
+ttk.Label(root, text="Фильтр по типу:").pack(pady=5)
+filter_combo = ttk.Combobox(root, values=types, textvariable=filter_var, state="readonly")
+filter_combo.pack()
 
-window.mainloop()
+history_text = tk.Text(root, height=15, width=60)
+history_text.pack(pady=10)
+
+
+def save_history():
+    with open(HISTORY_FILE, "w", encoding="utf-8") as f:
+        json.dump(history, f, ensure_ascii=False, indent=4)
+
+
+def save_tasks():
+    with open(TASKS_FILE, "w", encoding="utf-8") as f:
+        json.dump(tasks, f, ensure_ascii=False, indent=4)
+
+
+def update_history_display():
+    history_text.delete("1.0", tk.END)
+    current_filter = filter_var.get()
+    for item in history:
+        if current_filter != "Все" and item['type'] != current_filter:
+            continue
+        history_text.insert(tk.END, f"{item['task']} ({item['type']})\n")
+
+
+def generate_task():
+    filtered_tasks = tasks
+    current_filter = filter_var.get()
+    if current_filter != "Все":
+        filtered_tasks = [t for t in tasks if t['type'] == current_filter]
+    if not filtered_tasks:
+        messagebox.showinfo("Информация", "Нет задач для выбранного фильтра")
+        return
+    selected = random.choice(filtered_tasks)
+    history.append(selected)
+    save_history()
+    update_history_display()
+
+
+# Ввод задачи
+ttk.Label(root, text="Добавить новую задачу").pack(pady=5)
+task_entry = ttk.Entry(root, width=40)
+task_entry.pack(pady=5)
+
+type_var = tk.StringVar()
+type_var.set("учёба")
+ttk.Label(root, text="Тип задачи:").pack()
+type_combo = ttk.Combobox(root, values=["учёба", "спорт", "работа"], textvariable=type_var, state="readonly")
+type_combo.pack(pady=5)
+
+
+def add_task():
+    task_name = task_entry.get().strip()
+    task_type = type_var.get()
+    if not task_name:
+        messagebox.showerror("Ошибка", "Пожалуйста, введите название задачи")
+        return
+    new_task = {"task": task_name, "type": task_type}
+    tasks.append(new_task)
+
+    # Добавление новой задачи в историю
+    history.append(new_task)
+
+    save_tasks()  # Сохраняем список задач
+    save_history()  # Сохраняем историю
+    messagebox.showinfo("Успех", "Задача добавлена")
+    task_entry.delete(0, tk.END)
+    filter_var.set("Все")
+    update_history_display()
+
+
+ttk.Button(root, text="Добавить задачу", command=add_task).pack(pady=5)
+ttk.Button(root, text="Сгенерировать задачу", command=generate_task).pack(pady=10)
+
+
+def on_filter_change(event):
+    update_history_display()
+
+
+filter_combo.bind("<<ComboboxSelected>>", on_filter_change)
+
+update_history_display()
+
+root.mainloop()
